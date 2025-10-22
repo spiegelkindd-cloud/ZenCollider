@@ -11,7 +11,7 @@ s.waitForBoot {
 
 	var useMidiNote = true;
 	var pitchMidi = 60; // Nota Do central (C4)
-	var pitchHz = 256.0; // original = 256.0
+	var pitchHz = 256.0;
 	var minAmp = 0.25;
 	var maxAmp = 0.45;
 	var minTimeBetween = 2.0;
@@ -54,7 +54,6 @@ s.waitForBoot {
 
 	Routine({
 		var finalFreq, reverbSynth;
-		// --- Variables para nuestra ventana de diálogo manual ---
 		var window, textField, okButton;
 
 		reverbSynth = Synth(\reverb, [\inBus, reverbBus]);
@@ -63,16 +62,10 @@ s.waitForBoot {
 		"--------------------------------------------------".postln;
 		"Bienvenido. Por favor, introduce la duración en la ventana emergente.".postln;
 
-		// CORRECCIÓN: Creamos una ventana (Window) manualmente para la entrada del usuario.
 		window = Window("Meditación", Rect(800, 400, 320, 90)).front;
-
-		// Campo de texto para que el usuario escriba.
 		textField = TextField(window, Rect(20, 40, 200, 24)).string_("15");
-
-		// Etiqueta de texto.
 		StaticText(window, Rect(20, 10, 280, 24)).string_("Duración de la meditación (minutos):");
 
-		// Botón de "OK". La 'action' es lo que se ejecuta al hacer clic.
 		okButton = Button(window, Rect(230, 40, 70, 24))
 		.states_([ ["Iniciar"] ])
 		.action_({
@@ -80,9 +73,8 @@ s.waitForBoot {
 			var countdown = 30;
 			var interval = 5 * 60;
 
-			// Obtenemos el texto del campo y lo convertimos a número.
 			durationMinutes = textField.string.asFloat;
-			window.close; // Cierra la ventana de diálogo.
+			window.close;
 
 			if(durationMinutes.notNil and: { durationMinutes > 0 }) {
 				durationSeconds = durationMinutes * 60;
@@ -93,14 +85,16 @@ s.waitForBoot {
 				"La cuenta regresiva de 30 segundos comienza AHORA.".postln;
 				"--------------------------------------------------".postln;
 
-				// El resto de la lógica se ejecuta DENTRO de la acción del botón.
 				Routine({
-					var waitTime;
+					// CORRECCIÓN: Todas las variables se declaran al inicio de la Routine.
+					var startOfInterval, timeElapsedInInterval, waitTime;
 
 					countdown.do({ |i| (countdown - i).post; "... ".post; 1.wait; });
 					"Comenzamos.".postln;
 
 					numIntervals.do({ |i|
+						startOfInterval = TempoClock.beats;
+
 						"Iniciando secuencia de campanadas".post;
 						if(i > 0) { " (minuto ".post; i * 5; ")".post; };
 						"".postln;
@@ -110,12 +104,21 @@ s.waitForBoot {
 							rrand(minTimeBetween, maxTimeBetween).wait;
 						});
 
-						if(i < (numIntervals - 1)) {
-							"Las próximas campanadas sonarán en 5 minutos...".postln;
-							waitTime = interval - (3 * ((minTimeBetween + maxTimeBetween) / 2));
-							waitTime.max(0).wait;
+						// CORRECCIÓN: Ahora solo asignamos valores a las variables ya declaradas.
+						timeElapsedInInterval = TempoClock.beats - startOfInterval;
+						waitTime = interval - timeElapsedInInterval;
+
+						if (waitTime > 0) {
+							if (i < (numIntervals - 1)) {
+								"Las próximas campanadas sonarán en 5 minutos...".postln;
+							};
+							waitTime.wait;
 						};
 					});
+
+					"Campanada final.".postln;
+					Synth(\singingBowl, [\freq, finalFreq, \amp, maxAmp, \pan, 0]);
+					(minTimeBetween).wait;
 
 					"--------------------------------------------------".postln;
 					"La sesión de meditación ha terminado.".postln;
@@ -130,7 +133,6 @@ s.waitForBoot {
 			}
 		});
 
-		// Si el usuario cierra la ventana sin presionar "Iniciar".
 		window.onClose_({ okButton.action = nil; });
 
 	}).play(AppClock);
